@@ -1,6 +1,6 @@
 {
   "name": "random-read-http",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Continuous reading from a http(s) url using random offsets and lengths",
   "main": "index.js",
   "repository": {
@@ -26,7 +26,7 @@
     "eslint": "eslint index.js",
     "checkall": "npm run eslint",
     "mocha": "node node_modules/mocha/bin/_mocha",
-    "cover" : "nyc --temp-directory coverage/.nyc_output --reporter text-summary --reporter html --reporter lcov  mocha",
+    "cover": "nyc --temp-directory coverage/.nyc_output --reporter text-summary --reporter html --reporter lcov  mocha",
     "coveralls": "npm install coveralls && node ./node_modules/coveralls/bin/coveralls.js < ./coverage/lcov.info"
   },
   "devDependencies": {
