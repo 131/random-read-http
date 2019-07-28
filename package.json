@@ -19,7 +19,8 @@
   },
   "homepage": "https://github.com/131/random-read-http#readme",
   "dependencies": {
-    "bl": "^1.2.0"
+    "bl": "^1.2.0",
+    "debug": "^2.3.2"
   },
   "scripts": {
     "preversion": "npm run checkall",

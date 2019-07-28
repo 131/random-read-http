@@ -3,6 +3,12 @@
 const https = require('https');
 const url   = require('url');
 const bl    = require('bl');
+const debug = require('debug');
+
+const logger = {
+  info  : debug('random-read-http:info'),
+  debug : debug('random-read-http:debug'),
+};
 
 const sprintf = require('util').format;
 
@@ -39,7 +45,7 @@ class RandomReadHTTP {
   }
 
   async _open() {
-    console.log("Opening", this.remote_url);
+    logger.info("Opening", this.remote_url);
     //request head & store headers
     let head = await request({
       agent : this.agent,
@@ -84,7 +90,7 @@ class RandomReadHTTP {
 
     if(seeking) {
       if(this.res) {
-        console.log("Should kill current seek (remote_pos %d, offset %d)", this.remote_pos, offset);
+        logger.info("Should kill current seek (remote_pos %d, offset %d)", this.remote_pos, offset);
         this.res.pause();
         this.res.bl.consume(this.res.bl.length);
         this.res.bl = null;
@@ -94,10 +100,10 @@ class RandomReadHTTP {
 
     }
 
-    console.log("Reading %d bytes at %d (bl %s, %s)", len, offset, prettyFileSize(this.res.bl.length), this.res.isPaused() ? 'paused' : 'flowing');
+    logger.debug("Reading %d bytes at %d (bl %s, %s)", len, offset, prettyFileSize(this.res.bl.length), this.res.isPaused() ? 'paused' : 'flowing');
 
     if(this.res.bl.length <= this.MIN_BL && this.res.isPaused()) {
-      console.log("RESTART BUFFERING", prettyFileSize(this.res.bl.length));
+      logger.info("RESTART BUFFERING", prettyFileSize(this.res.bl.length));
       this.res.resume();
     }
 
@@ -115,7 +121,7 @@ class RandomReadHTTP {
 
   async _readSeek(offset) {
     this._seeks++;
-    console.log("Reading (seeking) at %d ", offset, this.remote_pos);
+    logger.info("Reading (seeking) at %d ", offset, this.remote_pos);
     let range = `${offset}-${this.remote_size - 1}`;
     let res = await request({
       agent : this.agent,
@@ -129,7 +135,7 @@ class RandomReadHTTP {
     res.on('data', (buf) => {
       bli.append(buf);
       if(bli.length >= this.MAX_BL) {
-        console.log("SLOWING RES ABIT", prettyFileSize(bli.length));
+        logger.info("SLOWING RES ABIT", prettyFileSize(bli.length));
         res.pause();
       }
     });
