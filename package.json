@@ -1,6 +1,6 @@
 {
   "name": "random-read-http",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Continuous reading from a http(s) url using random offsets and lengths",
   "main": "index.js",
   "repository": {
