@@ -27,6 +27,7 @@ class RandomReadHTTP {
   }
 
   close() {
+    this.closing = true;
     if(this.agent) {
       this.agent.destroy();
       this.agent = null;
@@ -87,12 +88,17 @@ class RandomReadHTTP {
       if(this.res) {
         logger.info("Should kill current seek (remote_pos %d, offset %d)", this.remote_pos, offset);
         this.res.pause();
-        this.res.bl.consume(this.res.bl.length);
+        this.res.bl.consume(this.res.bl.length); //drain all
         this.res.bl = null;
       }
-
       this.res = await this._readSeek(offset);
+    }
 
+    if(this.res.readableEnded && !this.closing && this.remote_size  != offset + this.res.bl.length) {
+      logger.info("Re-open at", prettyFileSize(this.res.bl.length));
+      let current = this.res.bl;
+      this.res = await this._readSeek(offset + current.length);
+      this.res.bl.append(current);
     }
 
     logger.debug("Reading %d bytes at %d (bl %s, %s)", len, offset, prettyFileSize(this.res.bl.length), this.res.isPaused() ? 'paused' : 'flowing');
@@ -116,7 +122,7 @@ class RandomReadHTTP {
 
   async _readSeek(offset) {
     this._seeks++;
-    logger.info("Reading (seeking) at %d ", offset, this.remote_pos);
+    logger.info("Reading (seeking) at %d ", offset);
     let range = `${offset}-${this.remote_size - 1}`;
     let res = await request({
       agent : this.agent,
@@ -127,6 +133,13 @@ class RandomReadHTTP {
       throw `Invalid partial request response ${res.statusCode}`;
 
     let bli = bl();
+
+    res.on('end', () => {
+      logger.debug("Reaching end", this.remote_url);
+      res.readableEnded = true;
+    });
+
+
     res.on('data', (buf) => {
       bli.append(buf);
       if(bli.length >= this.MAX_BL) {
