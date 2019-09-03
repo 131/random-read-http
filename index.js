@@ -33,6 +33,7 @@ class RandomReadHTTP {
       this.agent = null;
     }
     if(this.res) {
+      logger.info("Closing", this.remote_url);
       this.res.destroy();
       this.res.bl.consume(this.res.bl.length);
       this.res.bl = null;
@@ -74,10 +75,10 @@ class RandomReadHTTP {
     //check last offset and detect if we seek
     let seeking = this.remote_pos != offset;
 
-    if(seeking) {
+    if(seeking && this.res) {
       //first, check if we can cancel seek using current buffer
       let shift = offset - this.remote_pos;
-      if(shift > 0  && this.res && this.res.bl.length >= shift) {
+      if(shift > 0 && this.res.bl.length >= shift) {
         this.res.bl.consume(shift);
         this.remote_pos += shift;
         seeking = false;
