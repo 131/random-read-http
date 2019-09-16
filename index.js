@@ -17,6 +17,7 @@ const MIN_BL = 5 * 1024 * 1024;  // 5 MB
 
 class RandomReadHTTP {
   constructor(remote_url, options) {
+    this.remote_size = null;
     this.remote_url = remote_url;
     this._seeks = 0; //keep seeks count
     this.agent = new https.Agent({keepAlive : true});
@@ -59,7 +60,7 @@ class RandomReadHTTP {
 
   async read(buf, len, offset, cb) {
 
-    if(!this.remote_size) {
+    if(this.remote_size == null) {
       this._open().then(() => {
         this.read(buf, len, offset, cb);
       });

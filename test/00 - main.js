@@ -10,6 +10,9 @@ const bl        = require('bl');
 const FIXTURE_URL = "https://raw.githubusercontent.com/wiki/131/random-read-http/fixtures/water_drop.flv"
 const FIXTURE_HASH = "f7170c15083261291c478ea61d4e99db";
 
+const FIXTURE_EMPTY_URL = "https://raw.githubusercontent.com/wiki/131/random-read-http/fixtures/empty"
+const FIXTURE_EMPTY_HASH = "d41d8cd98f00b204e9800998ecf8427e";
+
 const RandomReadHTTP = require('../')
 
 describe("Main test suite", function(){
@@ -91,5 +94,17 @@ describe("Main test suite", function(){
       });
     });
   });
+
+  it("Should read an empty file", async () => {
+    remote = new RandomReadHTTP(FIXTURE_EMPTY_URL);
+    await new Promise((resolve) => {
+      remote.read(tmp, 10, 0, function(size) {
+        expect(md5(tmp.slice(0, size))).to.eql(md5(""));
+        resolve();
+      });
+    });
+  });
+
+
 
 });
