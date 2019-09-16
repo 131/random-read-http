@@ -8,7 +8,7 @@
 
 # Motivation
 
-This module allows you to open an http(s) url and read through it at random offsets (seeking). This is usefull when working with pseudo-fs like [cloudfs](./cloudfs).
+This module allows you to open an http(s) url and read through it at random offsets (seeking). This is usefull when working with pseudo-fs like [cloudfs](../cloudfs).
 
 It's optimized for speed and efficiency, using http(s) agent & http 1.1 polling & a buffer list to control the flow and minimized round-trips.
 
