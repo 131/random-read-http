@@ -33,13 +33,18 @@ class RandomReadHTTP {
       this.agent.destroy();
       this.agent = null;
     }
+
     if(this.res) {
       logger.info("Closing", this.remote_url);
       this.res.destroy();
-      this.res.bl.consume(this.res.bl.length);
-      this.res.bl = null;
       this.res = null;
     }
+
+    if(this.bl) {
+      this.bl.consume(this.bl.length);
+      this.bl = null;
+    }
+
   }
 
   async _open() {
@@ -79,8 +84,8 @@ class RandomReadHTTP {
     if(seeking && this.res) {
       //first, check if we can cancel seek using current buffer
       let shift = offset - this.remote_pos;
-      if(shift > 0 && this.res.bl.length >= shift) {
-        this.res.bl.consume(shift);
+      if(shift > 0 && this.bl.length >= shift) {
+        this.bl.consume(shift);
         this.remote_pos += shift;
         seeking = false;
       }
@@ -90,39 +95,40 @@ class RandomReadHTTP {
       if(this.res) {
         logger.info("Should kill current seek (remote_pos %d, offset %d)", this.remote_pos, offset);
         this.res.pause();
-        this.res.bl.consume(this.res.bl.length); //drain all
-        this.res.bl = null;
+        this.bl.consume(this.bl.length); //drain all
+        this.bl = null;
       }
-      this.res = await this._readSeek(offset);
+
+      this.bl  = bl();
+      this.res = await this._readSeek(offset, this.bl);
     }
 
-    if(this.res.readableEnded && !this.closing && this.remote_size  != offset + this.res.bl.length) {
-      logger.info("Re-open at", prettyFileSize(this.res.bl.length));
-      let current = this.res.bl;
-      this.res = await this._readSeek(offset + current.length);
-      this.res.bl.append(current);
+    let atEnd = this.remote_size == offset + this.bl.length;
+    if(this.res.readableEnded && !this.closing && !atEnd) {
+      logger.info("Re-open at", prettyFileSize(this.bl.length));
+      this.res = await this._readSeek(offset + this.bl.length, this.bl);
     }
 
-    logger.debug("Reading %d bytes at %d (bl %s, %s)", len, offset, prettyFileSize(this.res.bl.length), this.res.isPaused() ? 'paused' : 'flowing');
+    logger.debug("Reading %d bytes at %d (bl %s, %s)", len, offset, prettyFileSize(this.bl.length), this.res.isPaused() ? 'paused' : 'flowing');
 
-    if(this.res.bl.length <= this.MIN_BL && this.res.isPaused()) {
-      logger.info("RESTART BUFFERING", prettyFileSize(this.res.bl.length));
+    if(this.bl.length <= this.MIN_BL && this.res.isPaused()) {
+      logger.info("RESTART BUFFERING", prettyFileSize(this.bl.length));
       this.res.resume();
     }
 
-    while(this.res.bl.length < len) {
+    while(this.bl.length < len) {
       if(this.res.isPaused())
         this.res.resume();
-      await new Promise(resolve => this.res.once('data', resolve));
+      await new Promise(resolve => this.res.once('data', resolve)); //?
     }
 
-    this.res.bl.copy(buf, 0, 0, len);
-    this.res.bl.consume(len);
+    this.bl.copy(buf, 0, 0, len);
+    this.bl.consume(len);
     this.remote_pos = offset + len;
     cb(len);
   }
 
-  async _readSeek(offset) {
+  async _readSeek(offset, bli) {
     this._seeks++;
     logger.info("Reading (seeking) at %d ", offset);
     let range = `${offset}-${this.remote_size - 1}`;
@@ -133,8 +139,6 @@ class RandomReadHTTP {
     });
     if(res.statusCode != 206)
       throw `Invalid partial request response ${res.statusCode}`;
-
-    let bli = bl();
 
     res.on('end', () => {
       logger.debug("Reaching end", this.remote_url);
@@ -150,7 +154,6 @@ class RandomReadHTTP {
       }
     });
 
-    res.bl = bli;
     return res;
   }
 }
