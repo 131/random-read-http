@@ -5,6 +5,7 @@ const url   = require('url');
 const bl    = require('bl');
 const debug = require('debug');
 
+
 const logger = {
   info  : debug('random-read-http:info'),
   debug : debug('random-read-http:debug'),
@@ -14,6 +15,14 @@ const sprintf = require('util').format;
 
 const MAX_BL = 20 * 1024 * 1024; // 20 MB
 const MIN_BL = 5 * 1024 * 1024;  // 5 MB
+
+
+// when resuming after (more than ?) 140s
+// node behave weirdly, and output few MBs before ending the remote stream
+// the few MBs contains then contains DUPLICATED DATA and breaks everything
+
+const MAX_SLEEP_TIME = 60 * 1000;
+
 
 class RandomReadHTTP {
   constructor(remote_url, options) {
@@ -105,15 +114,21 @@ class RandomReadHTTP {
 
     let atEnd = this.remote_size == offset + this.bl.length;
     if(this.res.readableEnded && !this.closing && !atEnd) {
-      logger.info("Re-open at", prettyFileSize(this.bl.length));
+      logger.info("Re-open at %d (bl %d/%s)", offset, this.bl.length, prettyFileSize(this.bl.length));
       this.res = await this._readSeek(offset + this.bl.length, this.bl);
     }
 
     logger.debug("Reading %d bytes at %d (bl %s, %s)", len, offset, prettyFileSize(this.bl.length), this.res.isPaused() ? 'paused' : 'flowing');
 
     if(this.bl.length <= this.MIN_BL && this.res.isPaused()) {
-      logger.info("RESTART BUFFERING", prettyFileSize(this.bl.length));
-      this.res.resume();
+      logger.info("RESTART BUFFERING at %d (bl %d/%s)", offset, this.bl.length, prettyFileSize(this.bl.length));
+
+      if(Date.now() - this.res.paused > MAX_SLEEP_TIME) {
+        this.res.destroy();
+        this.res.readableEnded = true;
+      } else {
+        this.res.resume();
+      }
     }
 
     while(this.bl.length < len) {
@@ -137,18 +152,19 @@ class RandomReadHTTP {
       ...url.parse(this.remote_url),
       headers : {range : `bytes=${range}`},
     });
+
     if(res.statusCode != 206)
       throw `Invalid partial request response ${res.statusCode}`;
 
     res.on('end', () => {
-      logger.debug("Reaching end", this.remote_url);
+      logger.info("Reaching end", this.remote_url);
       res.readableEnded = true;
     });
-
 
     res.on('data', (buf) => {
       bli.append(buf);
       if(bli.length >= this.MAX_BL) {
+        res.paused = Date.now();
         logger.info("SLOWING RES ABIT", prettyFileSize(bli.length));
         res.pause();
       }
