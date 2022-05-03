@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/131/random-read-http.svg?branch=master)](https://travis-ci.org/131/random-read-http)
+[![Build Status](https://github.com/131/random-read-http/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/131/random-read-http/actions/workflows/test.yml)
 [![Coverage Status](https://coveralls.io/repos/github/131/random-read-http/badge.svg?branch=master)](https://coveralls.io/github/131/random-read-http?branch=master)
 [![Version](https://img.shields.io/npm/v/random-read-http.svg)](https://www.npmjs.com/package/random-read-http)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](http://opensource.org/licenses/MIT)
@@ -10,7 +10,7 @@
 
 This module allows you to open an http(s) url and read through it at random offsets (seeking). This is usefull when working with pseudo-fs like [cloudfs](https://github.com/131/cloudfs).
 
-It's optimized for speed and efficiency, using http(s) agent & http 1.1 polling & a buffer list to control the flow and minimized round-trips.
+It's optimized for speed and efficiency, using http(s) agent & http 1.1 polling & a read-ahead buffer list to control the flow and minimize round-trips.
 
 
 # API / usage

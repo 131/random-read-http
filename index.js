@@ -1,6 +1,8 @@
 "use strict";
 
 const https = require('https');
+const http  = require('http');
+
 const url   = require('url');
 const bl    = require('bl');
 const debug = require('debug');
@@ -29,7 +31,8 @@ class RandomReadHTTP {
     this.remote_size = null;
     this.remote_url = remote_url;
     this._seeks = 0; //keep seeks count
-    this.agent = new https.Agent({keepAlive : true});
+    this.agent  = new https.Agent({keepAlive : true});
+    this.hagent = new http.Agent({keepAlive : true});
 
     options = {MAX_BL_SIZE : MAX_BL, MIN_BL_SIZE : MIN_BL, ...options};
     this.MAX_BL = options.MAX_BL_SIZE;
@@ -41,6 +44,11 @@ class RandomReadHTTP {
     if(this.agent) {
       this.agent.destroy();
       this.agent = null;
+    }
+
+    if(this.hagent) {
+      this.hagent.destroy();
+      this.hagent = null;
     }
 
     if(this.res) {
@@ -60,10 +68,9 @@ class RandomReadHTTP {
     logger.info("Opening", this.remote_url);
     //request head & store headers
     let head = await request({
-      agent : this.agent,
       ...url.parse(this.remote_url),
       'method' : 'HEAD',
-    });
+    }, this.agent, this.hagent);
     if(head.statusCode != 200)
       throw `Invalid statusCode ${head.statusCode}`;
     if((head.headers['accept-ranges'] || '').indexOf('bytes') == -1)
@@ -125,7 +132,7 @@ class RandomReadHTTP {
 
       if(Date.now() - this.res.paused > MAX_SLEEP_TIME) {
         this.res.destroy();
-        this.res.readableEnded = true;
+        //this.res.readableEnded = true;
       } else {
         this.res.resume();
       }
@@ -148,17 +155,16 @@ class RandomReadHTTP {
     logger.info("Reading (seeking) at %d ", offset);
     let range = `${offset}-${this.remote_size - 1}`;
     let res = await request({
-      agent : this.agent,
       ...url.parse(this.remote_url),
       headers : {range : `bytes=${range}`},
-    });
+    }, this.agent, this.hagent);
 
     if(res.statusCode != 206)
       throw `Invalid partial request response ${res.statusCode}`;
 
     res.on('end', () => {
       logger.info("Reaching end", this.remote_url);
-      res.readableEnded = true;
+      //res.readableEnded = true;
     });
 
     res.on('data', (buf) => {
@@ -182,9 +188,9 @@ const prettyFileSize  = function(bytes) {
   return sprintf("%s%s", Math.floor(100 * bytes / Math.pow(1024, factor)) / 100, size[factor]);
 };
 
-const request = function(query) {
+const request = function({protocol, ...query}, agent, hagent) {
   return new Promise((resolve, reject) => {
-    let req = https.request(query, resolve);
+    let req = protocol ==  "https:"  ? https.request({agent, ...query}, resolve) : http.request({agent : hagent, ...query}, resolve);
     req.on('error', reject);
     req.end();
   });

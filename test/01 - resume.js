@@ -1,9 +1,8 @@
 "use strict";
 
-const expect = require('expect.js');
+const expect    = require('expect.js');
 const drain     = require('nyks/stream/drain');
-const promisify = require('nyks/function/promisify');
-const request   = promisify(require('nyks/http/request'));
+const request   = require('nyks/http/request');
 const md5       = require('nyks/crypto/md5');
 const bl        = require('bl');
 
