@@ -130,12 +130,10 @@ class RandomReadHTTP {
     if(this.bl.length <= this.MIN_BL && this.res.isPaused()) {
       logger.info("RESTART BUFFERING at %d (bl %d/%s)", offset, this.bl.length, prettyFileSize(this.bl.length));
 
-      if(Date.now() - this.res.paused > MAX_SLEEP_TIME) {
-        this.res.destroy();
-        //this.res.readableEnded = true;
-      } else {
+      if(Date.now() - this.res.paused > MAX_SLEEP_TIME)
+        this.res.destroy(); //, this.res.readableEnded = true;
+      else
         this.res.resume();
-      }
     }
 
     while(this.bl.length < len) {
