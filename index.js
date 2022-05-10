@@ -120,7 +120,7 @@ class RandomReadHTTP {
     }
 
     let atEnd = this.remote_size == offset + this.bl.length;
-    if(this.res.readableEnded && !this.closing && !atEnd) {
+    if((this.res.readableEnded || this.res._readableEnded) && !this.closing && !atEnd) {
       logger.info("Re-open at %d (bl %d/%s)", offset, this.bl.length, prettyFileSize(this.bl.length));
       this.res = await this._readSeek(offset + this.bl.length, this.bl);
     }
@@ -131,7 +131,7 @@ class RandomReadHTTP {
       logger.info("RESTART BUFFERING at %d (bl %d/%s)", offset, this.bl.length, prettyFileSize(this.bl.length));
 
       if(Date.now() - this.res.paused > MAX_SLEEP_TIME)
-        this.res.destroy(); //, this.res.readableEnded = true;
+        this.res.destroy(), this.res._readableEnded = true;
       else
         this.res.resume();
     }
@@ -162,7 +162,7 @@ class RandomReadHTTP {
 
     res.on('end', () => {
       logger.info("Reaching end", this.remote_url);
-      //res.readableEnded = true;
+      res._readableEnded = true;
     });
 
     res.on('data', (buf) => {
